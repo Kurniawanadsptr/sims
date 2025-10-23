@@ -19,9 +19,10 @@ const Navbar: React.FC = () => {
   const handleLogout = () => {
     dispatch(logout());
     dispatch(resetDashboard());
-    localStorage.clear();
+    localStorage.removeItem("services");
+    localStorage.removeItem("servicesExpired");
     Cookies.remove("token");
-    navigate("/login");
+    navigate("/");
   };
 
   return (
