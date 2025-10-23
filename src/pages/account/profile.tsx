@@ -215,7 +215,7 @@ const ProfileCard: React.FC = () => {
             <InputField
               label="Email"
               value={email}
-              readOnly={!isEditing}
+              readOnly
               onChange={(val) =>
                 setFormData((prev) => ({ ...prev!, email: val }))
               }
