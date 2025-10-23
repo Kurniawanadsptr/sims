@@ -1,20 +1,76 @@
-import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import { resetDashboard } from "../redux/slices/dashboard";
-import { logout } from "../redux/slices/loginSlice";
-const navItems = [
-  { to: "/dashboard", label: "Home" },
-  { to: "/topup", label: "Top Up" },
-  { to: "/transaction", label: "Transaksi" },
-  { to: "/profile", label: "Akun" },
-];
+import { getProfile, updateImage, updateProfile } from "../../api/profile";
+import Navbar from "../../MasterLayout/Navbar";
+import Loading from "../../utils/loading/loading";
+import {
+  AlertError,
+  AlertLoading,
+  AlertSuccess,
+  CloseSwal,
+} from "../../utils/swal/swal";
+import { resetDashboard } from "../../redux/slices/dashboard";
+import { useDispatch } from "react-redux";
+import { logout } from "../../redux/slices/loginSlice";
 
-const Navbar: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dispatch = useDispatch();
+interface ProfileData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  profile_image?: string;
+}
+
+const MAX_IMAGE_SIZE = 100 * 1024;
+
+const ProfileCard: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [formData, setFormData] = useState<ProfileData | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const token = Cookies.get("token");
+
+  useEffect(() => {
+    if (!token) {
+      navigate("/");
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        const response = await getProfile(token);
+        const data = response.data.data;
+
+        const cleanProfile = {
+          ...data,
+          profile_image:
+            !data.profile_image ||
+            data.profile_image ===
+              "https://minio.nutech-integrasi.com/take-home-test/null"
+              ? "/assets/image/profile Photo.png"
+              : data.profile_image,
+        };
+
+        setProfile(cleanProfile);
+      } catch (err) {
+        console.error("Gagal ambil profil:", err);
+        Cookies.remove("token");
+        navigate("/");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [navigate, token]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -25,116 +81,232 @@ const Navbar: React.FC = () => {
     navigate("/");
   };
 
+  const handleEdit = () => {
+    setFormData(profile);
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setFormData(null);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
+  const handleAvatarClick = () => {
+    if (isEditing && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isValidType = ["image/jpeg", "image/png"].includes(file.type);
+    const isValidSize = file.size <= MAX_IMAGE_SIZE;
+
+    if (!isValidType) {
+      AlertError("Format gambar harus JPG atau PNG.");
+      return;
+    }
+
+    if (!isValidSize) {
+      AlertError("Ukuran gambar maksimum 100 KB.");
+      return;
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleSave = async () => {
+    if (!token || !formData) return;
+
+    setIsSaving(true);
+    AlertLoading("Menyimpan profil...");
+
+    try {
+      let updatedData = await updateProfile(token, {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+      });
+
+      if (selectedFile) {
+        updatedData = await updateImage(token, selectedFile);
+      }
+
+      const cleanProfile = {
+        ...updatedData,
+        profile_image:
+          !updatedData.profile_image ||
+          updatedData.profile_image ===
+            "https://minio.nutech-integrasi.com/take-home-test/null"
+            ? "/assets/image/profile Photo.png"
+            : updatedData.profile_image,
+      };
+
+      setProfile(cleanProfile);
+      setIsEditing(false);
+      setFormData(null);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      CloseSwal();
+      AlertSuccess("Profil berhasil diperbarui!");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (err) {
+      console.error("Gagal update profil:", err);
+      CloseSwal();
+      AlertError("Gagal memperbarui profil.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (loading || !profile) return <Loading />;
+
+  const { email, first_name, last_name, profile_image } =
+    isEditing && formData ? formData : profile;
+
+  const imageUrl =
+    previewUrl || profile_image || "/assets/image/profile Photo.png";
+
   return (
     <>
-      <nav className="sticky top-0 bg-white shadow-md px-6 py-4 flex items-center justify-between z-50">
-        <div className="flex items-center space-x-2 lg:px-20">
-          <img src="/assets/image/Logo.png" alt="Logo" className="w-8 h-8" />
-          <span className="text-lg font-semibold text-gray-800">SIMS PPOB</span>
+      <Navbar />
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center px-4 py-10">
+        <div className="relative w-28 h-28 md:w-32 md:h-32 mb-4">
+          <img
+            src={imageUrl}
+            alt="Avatar"
+            onClick={handleAvatarClick}
+            className={`w-full h-full rounded-full object-cover border-4 border-white shadow-md cursor-pointer ${
+              isEditing ? "hover:opacity-80" : ""
+            }`}
+          />
+          {isEditing && (
+            <>
+              <div className="absolute bottom-1 right-1 bg-white rounded-full p-1 shadow">
+                <img
+                  src="/assets/image/pencil.png"
+                  alt="Edit"
+                  className="w-5 h-5"
+                />
+              </div>
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </>
+          )}
         </div>
-        <ul className="hidden md:flex space-x-6 text-sm font-medium lg:px-20">
-          {navItems.map(({ to, label }) => (
-            <li key={to}>
-              <NavLink
-                to={to}
-                className={({ isActive }) =>
-                  isActive
-                    ? "text-red-500 border-b-2 border-red-500 pb-1"
-                    : "text-black hover:text-red-500"
-                }
-              >
-                {label}
-              </NavLink>
-            </li>
-          ))}
-          <li>
-            <button
-              onClick={handleLogout}
-              className="text-black hover:text-red-500 text-sm font-medium"
-            >
-              Logout
-            </button>
-          </li>
-        </ul>
-        <button
-          className="md:hidden text-gray-700"
-          onClick={() => setIsOpen(true)}
-          aria-label="Open menu"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </nav>
-      <div
-        className={`fixed top-0 right-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-        role="dialog"
-        aria-hidden={!isOpen}
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <span className="text-lg font-semibold text-gray-800">Menu</span>
-          <button
-            className="text-gray-700"
-            onClick={() => setIsOpen(false)}
-            aria-label="Close menu"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mt-2 text-center">
+          {`${first_name} ${last_name}`}
+        </h2>
+
+        <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md mt-6">
+          <div className="space-y-4">
+            <InputField
+              label="Email"
+              value={email}
+              readOnly={!isEditing}
+              onChange={(val) =>
+                setFormData((prev) => ({ ...prev!, email: val }))
+              }
+            />
+            <InputField
+              label="Nama Depan"
+              value={first_name}
+              readOnly={!isEditing}
+              onChange={(val) =>
+                setFormData((prev) => ({ ...prev!, first_name: val }))
+              }
+            />
+            <InputField
+              label="Nama Belakang"
+              value={last_name}
+              readOnly={!isEditing}
+              onChange={(val) =>
+                setFormData((prev) => ({ ...prev!, last_name: val }))
+              }
+            />
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            {isEditing ? (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className={`py-3 rounded text-white ${
+                    isSaving
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-red-500 hover:bg-red-700"
+                  }`}
+                >
+                  {isSaving ? "Menyimpan..." : "Simpan"}
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="border border-gray-500 text-gray-500 py-3 rounded hover:bg-gray-500 hover:text-white"
+                >
+                  Batalkan
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleEdit}
+                  className="border border-red-500 text-red-500 py-3 rounded"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="border bg-red-500 text-white py-3 rounded hover:bg-red-700 hover:text-white"
+                >
+                  Logout
+                </button>
+              </>
+            )}
+          </div>
         </div>
-        <ul className="flex flex-col space-y-4 p-6 text-sm font-medium">
-          {navItems.map(({ to, label }) => (
-            <li key={to}>
-              <NavLink
-                to={to}
-                onClick={() => setIsOpen(false)}
-                className={({ isActive }) =>
-                  isActive
-                    ? "text-red-500 border-b-2 border-red-500 pb-1 block"
-                    : "text-black hover:text-red-500 block"
-                }
-              >
-                {label}
-              </NavLink>
-            </li>
-          ))}
-          <li>
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                handleLogout();
-              }}
-              className="text-black hover:text-red-500 block text-left w-full"
-            >
-              Logout
-            </button>
-          </li>
-        </ul>
       </div>
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-30 z-40"
-          onClick={() => setIsOpen(false)}
-          aria-hidden="true"
-        />
-      )}
     </>
   );
 };
 
-export default Navbar;
+export default ProfileCard;
+
+interface InputFieldProps {
+  label: string;
+  value: string;
+  readOnly: boolean;
+  onChange: (val: string) => void;
+}
+
+const InputField: React.FC<InputFieldProps> = ({
+  label,
+  value,
+  readOnly,
+  onChange,
+}) => (
+  <div>
+    <label className="text-sm text-gray-500">{label}</label>
+    <input
+      type="text"
+      value={value}
+      readOnly={readOnly}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full border p-3 rounded ${
+        readOnly ? "bg-gray-100 border-gray-300" : "bg-white border-gray-300"
+      }`}
+    />
+  </div>
+);
