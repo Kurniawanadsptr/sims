@@ -55,7 +55,7 @@ const ProfileCard: React.FC = () => {
             !data.profile_image ||
             data.profile_image ===
               "https://minio.nutech-integrasi.com/take-home-test/null"
-              ? "/assets/image/profile Photo.png"
+              ? "/assets/image/Profile Photo.png"
               : data.profile_image,
         };
 
