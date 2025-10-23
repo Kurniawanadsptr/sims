@@ -10,6 +10,9 @@ import {
   AlertSuccess,
   CloseSwal,
 } from "../../utils/swal/swal";
+import { resetDashboard } from "../../redux/slices/dashboard";
+import { useDispatch } from "react-redux";
+import { logout } from "../../redux/slices/loginSlice";
 
 interface ProfileData {
   first_name: string;
@@ -22,6 +25,7 @@ const MAX_IMAGE_SIZE = 100 * 1024;
 
 const ProfileCard: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -69,6 +73,10 @@ const ProfileCard: React.FC = () => {
   }, [navigate, token]);
 
   const handleLogout = () => {
+    dispatch(logout());
+    dispatch(resetDashboard());
+    localStorage.removeItem("services");
+    localStorage.removeItem("servicesExpired");
     Cookies.remove("token");
     navigate("/");
   };
@@ -162,7 +170,8 @@ const ProfileCard: React.FC = () => {
   const { email, first_name, last_name, profile_image } =
     isEditing && formData ? formData : profile;
 
-  const imageUrl = previewUrl || profile_image || "/assets/image/profile Photo.png";
+  const imageUrl =
+    previewUrl || profile_image || "/assets/image/profile Photo.png";
 
   return (
     <>
