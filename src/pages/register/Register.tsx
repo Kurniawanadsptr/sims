@@ -103,7 +103,7 @@ const RegisterPage: React.FC = () => {
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
               <img
-                src="/assets/image/logo.png"
+                src="/assets/image/Logo.png"
                 alt="logo"
                 className="w-6 h-6"
               />
