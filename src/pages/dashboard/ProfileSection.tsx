@@ -20,7 +20,7 @@ const ProfileSection: React.FC<ProfileProps> = ({ profile, saldo }) => {
       !url ||
       url === "https://minio.nutech-integrasi.com/take-home-test/null"
     ) {
-      return "/assets/image/profile Photo.png";
+      return "/assets/image/Profile Photo.png";
     }
     return url;
   };
