@@ -70,7 +70,7 @@ const ProfileCard: React.FC = () => {
 
   const handleLogout = () => {
     Cookies.remove("token");
-    navigate("/login");
+    navigate("/");
   };
 
   const handleEdit = () => {
