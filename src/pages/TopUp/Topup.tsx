@@ -42,7 +42,7 @@ const Topup = () => {
         AlertSuccess("Top Up berhasil!");
         setTimeout(() => {
           window.location.reload();
-        }, 3000);
+        }, 2000);
       } else {
         AlertError(result.message || "Top Up gagal");
       }

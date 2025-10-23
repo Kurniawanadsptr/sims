@@ -27,6 +27,7 @@ const ProfileCard: React.FC = () => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [formData, setFormData] = useState<ProfileData | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,7 +36,7 @@ const ProfileCard: React.FC = () => {
 
   useEffect(() => {
     if (!token) {
-      navigate("/login");
+      navigate("/");
       return;
     }
 
@@ -47,8 +48,9 @@ const ProfileCard: React.FC = () => {
         const cleanProfile = {
           ...data,
           profile_image:
+            !data.profile_image ||
             data.profile_image ===
-            "https://minio.nutech-integrasi.com/take-home-test/null"
+              "https://minio.nutech-integrasi.com/take-home-test/null"
               ? "/assets/image/profile Photo.png"
               : data.profile_image,
         };
@@ -80,6 +82,7 @@ const ProfileCard: React.FC = () => {
     setIsEditing(false);
     setFormData(null);
     setSelectedFile(null);
+    setPreviewUrl(null);
   };
 
   const handleAvatarClick = () => {
@@ -96,16 +99,17 @@ const ProfileCard: React.FC = () => {
     const isValidSize = file.size <= MAX_IMAGE_SIZE;
 
     if (!isValidType) {
-      alert("Format gambar harus JPG atau PNG.");
+      AlertError("Format gambar harus JPG atau PNG.");
       return;
     }
 
     if (!isValidSize) {
-      alert("Ukuran gambar maksimum 100 KB.");
+      AlertError("Ukuran gambar maksimum 100 KB.");
       return;
     }
 
     setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSave = async () => {
@@ -127,8 +131,9 @@ const ProfileCard: React.FC = () => {
       const cleanProfile = {
         ...updatedData,
         profile_image:
+          !updatedData.profile_image ||
           updatedData.profile_image ===
-          "https://minio.nutech-integrasi.com/take-home-test/null"
+            "https://minio.nutech-integrasi.com/take-home-test/null"
             ? "/assets/image/profile Photo.png"
             : updatedData.profile_image,
       };
@@ -137,8 +142,12 @@ const ProfileCard: React.FC = () => {
       setIsEditing(false);
       setFormData(null);
       setSelectedFile(null);
+      setPreviewUrl(null);
       CloseSwal();
       AlertSuccess("Profil berhasil diperbarui!");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (err) {
       console.error("Gagal update profil:", err);
       CloseSwal();
@@ -152,7 +161,8 @@ const ProfileCard: React.FC = () => {
 
   const { email, first_name, last_name, profile_image } =
     isEditing && formData ? formData : profile;
-  const imageUrl = profile_image || "/assets/image/profile Photo.png";
+
+  const imageUrl = previewUrl || profile_image || "/assets/image/profile Photo.png";
 
   return (
     <>

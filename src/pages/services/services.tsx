@@ -40,7 +40,7 @@ const ServicesPayment = () => {
       AlertSuccess(`Transaksi berhasil! Invoice: ${result.invoice_number}`);
       setTimeout(() => {
         window.location.reload();
-      }, 3000);
+      }, 2000);
     } catch (err) {
       console.error("Gagal bayar:", err);
       AlertError("Terjadi kesalahan saat memproses pembayaran.");
